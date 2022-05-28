@@ -4,7 +4,12 @@ import time
 servo = 19 #servo pin
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(servo,GPIO.OUT)
-pwm = PWM.GPIO(servo, 50)
+pwm = GPIO.PWM(servo, 50)
+pwm.start(0)
+
+switch = 13 # pin
+GPIO.setup(switch, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+trip = GPIO.input(switch)
 
 def liquidSensor(): #########################
 
@@ -17,7 +22,7 @@ def liquidSensor(): #########################
         isDry = GPIO.input(sensorOut)
         if (isDry):
             print("dry")
-            return 1 
+            return 1
         else:
             print("wet")
             return 0
@@ -31,12 +36,12 @@ def sonarSensor(): ########################
     GPIO.setmode(GPIO.BCM)
     
     while True:
-        print"distance measurement in progress"
+        print("distance measurement in progress")
         GPIO.setup(TRIG, GPIO.OUT)
         GPIO.setup(ECHO, GPIO.IN)
         GPIO.output(TRIG, False)
         
-        print"waiting for sensor to settle"
+        print("waiting for sensor to settle")
         time.sleep(0.2)
         GPIO.output(TRIG, True)
         time.sleep(0.00001)
@@ -49,9 +54,9 @@ def sonarSensor(): ########################
             pulse_end = time.time()
             
         pulse_duration = pulse_end - pulse_start
-        distance = pulse_duration * 740                ###17150 for air
+        distance = pulse_duration * 17150               ###17150 for air, 740 water
         distance = round(distance, 2)
-        print"distance: ", distance, "cm"
+        print("distance: ", distance, "cm")
         
         time.sleep(2)  
         
@@ -63,10 +68,16 @@ def waterIn():                          ###turn counterclockwise
     GPIO.setmode(GPIO.BCM)
     #GPIO.setup(servo,GPIO.OUT)
     #pwm = PWM.GPIO(servo, 50)
-    
-    PWM.ChangeDutyCycle(2)
+    #pwm.start()
     print("activating servo up")
-    time.sleep(23)
+    i = 0
+    while i <1:
+        trip = GPIO.input(switch)
+        if (trip == 0):
+            pwm.ChangeDutyCycle(5)
+        else:
+            pwm.ChangeDutyCycle(0)
+            i = i + 1
     
     
 def waterOut():                         ###turn clockwise
@@ -74,10 +85,11 @@ def waterOut():                         ###turn clockwise
     GPIO.setmode(GPIO.BCM)
     #GPIO.setup(servo,GPIO.OUT)
     #pwm = PWM.GPIO(servo, 50)
-    
-    PWM.ChangeDutyCycle(20.5)
+    #pwm.start()
+    pwm.ChangeDutyCycle(10)
     print("activating servo down")
-    time.sleep(20)
+    time.sleep(33)
+    pwm.ChangeDutyCycle(0)
     
     
 def main():
@@ -90,41 +102,35 @@ def main():
     #goes up
     # COUNT = 2 - goes down
     
-    
-    
-        #would it be able to be drug underwater without being negatively buoyant?
-        
-        #must start negatively bouyant, up
-    
-    
-    
-    
     while (count < 3):
         
         if (sonarSensor() < 3):
             waterOut()
+            time.sleep(30)
             
         if (liquidSensor() == 1):
-            waterIn()
+            waterIn()                      #servo up
             count = count + 1
+            time.sleep(30)
             
-    if (count == 3 && liquidSensor() == 1):
+    if (count == 3):
         
-        print("resetting servo")
-        PWM.ChangeDutyCycle(20.5)
-        time.sleep(.5)
-        PWM.ChangeDutyCycle(2)
-        time.sleep(.5)
+        print("end")
         count = count + 1               #ends on top, floating
     
     
-    GPIO.cleanup
-    
+    GPIO.cleanup()
+   
+#program starts
+waterIn()     
+waterOut()
 
-waterIn()                           #will fill up with air on booting the pi
-
-if (liquidSensor() == 0):
-    waterOut()                      #on contact w/water will push out that air creating negative buoyancy
-    main()
+while True:
+    if (liquidSensor() == 0):                            #starts plunger @ bottom
+        waterIn()                                     
+        main()
+        break
+    time.sleep(3)
     
-GPIO.cleanup
+GPIO.cleanup()
+
