@@ -11,6 +11,10 @@ switch = 13 # pin
 GPIO.setup(switch, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 trip = GPIO.input(switch)
 
+
+#DRY IS 1; WET IS 0
+
+
 def liquidSensor(): #########################
 
     sensorOut = 7
@@ -54,7 +58,7 @@ def sonarSensor(): ########################
             pulse_end = time.time()
             
         pulse_duration = pulse_end - pulse_start
-        distance = pulse_duration * 17150               ###17150 for air, 740 water
+        distance = pulse_duration * 740               ###17150 for air, 740 water
         distance = round(distance, 2)
         print("distance: ", distance, "cm")
         
@@ -62,7 +66,8 @@ def sonarSensor(): ########################
         
         return distance
 
-    
+
+#takes water in until it hits switch at the top
 def waterIn():                          ###turn counterclockwise
 
     GPIO.setmode(GPIO.BCM)
@@ -70,15 +75,26 @@ def waterIn():                          ###turn counterclockwise
     #pwm = PWM.GPIO(servo, 50)
     #pwm.start()
     print("activating servo up")
-    i = 0
-    while i <1:
-        trip = GPIO.input(switch)
-        if (trip == 0):
-            pwm.ChangeDutyCycle(5)
-        else:
-            pwm.ChangeDutyCycle(0)
-            i = i + 1
+  
     
+    trip = GPIO.input(switch)
+
+    if (trip == 0):
+            pwm.ChangeDutyCycle(4)
+            
+    while GPIO.input(switch) == 0:
+        pass
+    
+    pwm.ChangeDutyCycle(0)
+        #1 means switch activated
+        #0 means not
+        
+        #if (trip == 0):
+         #   pwm.ChangeDutyCycle(5)
+       # else:
+        #    pwm.ChangeDutyCycle(0)
+        #    i = i + 1
+       # pwm.ChangeDutyCycle(5)
     
 def waterOut():                         ###turn clockwise
 
@@ -86,12 +102,22 @@ def waterOut():                         ###turn clockwise
     #GPIO.setup(servo,GPIO.OUT)
     #pwm = PWM.GPIO(servo, 50)
     #pwm.start()
-    pwm.ChangeDutyCycle(10)
-    print("activating servo down")
-    time.sleep(33)
-    pwm.ChangeDutyCycle(0)
+    trip = GPIO.input(switch)
+    print ("trip = ", trip)
+    if (trip == 1):
+        pwm.ChangeDutyCycle(10)
+        print("activating servo down")
+        time.sleep(33)
+        pwm.ChangeDutyCycle(0)
     
+
     
+# while 1:
+    
+#servo begins the program at the top of the syringe, so there is a forced
+#waterIn() then waterOut()
+#start by water out
+
 def main():
     
     count = 0
@@ -102,35 +128,43 @@ def main():
     #goes up
     # COUNT = 2 - goes down
     
-    while (count < 3):
-        
-        if (sonarSensor() < 3):
-            waterOut()
-            time.sleep(30)
+#while (count < 3):
+    for _ in range(3):
+        while sonarSensor() > 3:
+            print("going down")
             
-        if (liquidSensor() == 1):
-            waterIn()                      #servo up
-            count = count + 1
-            time.sleep(30)
+        waterOut()    
             
-    if (count == 3):
+        while liquidSensor() == 0:
+            print("going up")
         
-        print("end")
-        count = count + 1               #ends on top, floating
-    
-    
-    GPIO.cleanup()
+        waterIn()
+            
+       
+    #GPIO.cleanup()
    
-#program starts
-waterIn()     
+
+
+#while True:
+    #waterOut()
+    
+waterIn() #check that the syringe is completely empty
+time.sleep(2)
+waterOut()
+    #engine now @ top of pool
+while (liquidSensor() == 0):
+    #time.sleep()
+    pass #doesn't do anything
+
+while (liquidSensor() == 1):                            #starts plunger @ bottom
+    pass 
+
+waterIn()      #starts going down
+while (liquidSensor() == 1):
+    pass
+time.sleep(5)
+print("running main")
+main()
 waterOut()
 
-while True:
-    if (liquidSensor() == 0):                            #starts plunger @ bottom
-        waterIn()                                     
-        main()
-        break
-    time.sleep(3)
-    
 GPIO.cleanup()
-
